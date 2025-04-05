@@ -1,63 +1,52 @@
 import math
 import random
 from copy import deepcopy
+import pandas as pd
 
-# INIT
-with open("P12956.fasta", "r") as f:
-    lines = f.readlines()
-    o_sequence = list("".join([l.strip() for l in lines[1:]]))
-    f.close()
-
-with open("deep_mutational_scan.tsv", "r") as f:
-    lines = f.readlines()
-    dms_labels = lines[0].strip().split("\t")
-    dms = [l.strip().split("\t") for l in lines[1:]]
-    f.close()
-
-DEEPMUTDATALABELS = dms_labels
-DEEPMUTDATA = dms
-PROTEIN = o_sequence
+df = pd.read_csv("msu081_Supplementary_Data/tableau_suplementaire_2.csv", sep=";")
+PROTEIN = "EYSEEELKTHISKGTLGKFTVPMLKEACRAYGLKSGLKKQELLEALTKHFQD"
+SAP_region = [558, 609]
 N = 10**5
 
 def calc_identity(mutated_sequence):
 
-    diff = 0
+    sim = 0
 
     for i in range(len(mutated_sequence)):
-        if mutated_sequence[i] != PROTEIN[i]:
-            diff += 1
+        if mutated_sequence[i] == PROTEIN[i]:
+            sim += 1
 
-    return diff/len(mutated_sequence)
-
+    return sim/len(mutated_sequence)
 
 # Algorithme évolutif
 
 mutated_sequences = []
+random_aa = None
 
 for _ in range(500):
 
-    mutated_sequence = deepcopy(PROTEIN)
-
-    while(calc_identity(mutated_sequence) < 0.50):
+    mutated_sequence = list(deepcopy(PROTEIN))
+    while(calc_identity(mutated_sequence) > 0.50):
 
         s = "NA"
         k = 0
 
         # 1. Generate a random mutation
-        i = random.randint(0, len(PROTEIN)-1)
-        while (s == "NA"):
-            k = random.randint(0, 19)
-            # Taking s from DEEPMUTDATA matrix instead of creating a vector for each amino acid of the protein
-            s = DEEPMUTDATA[ DEEPMUTDATALABELS.index(mutated_sequence[i]) ][k]
+        random_position = random.randint(SAP_region[0], SAP_region[1])
+        while (s == "NA" or float(s) < 0 or str(random_aa["mut_aa"]) == "*"):
+            position = df[df["position"] == random_position]
+            random_aa = position.iloc[random.randint(0, len(position)-1)]
+            s = random_aa["fitness"]
 
         # 2. Calculate the probability of fixation
-        s = float(s.replace(",", "."))
+        s = float(s)
         pfix = (1 - math.e**(-2*s) ) / (1 - math.e**(-4*N*s))
 
         # 3. Determine if mutation is successful
         r = random.random()
         if r < pfix:
-            mutated_sequence[i] = DEEPMUTDATALABELS[k]
+
+            mutated_sequence[random_position-SAP_region[0]] = str(random_aa["mut_aa"])
 
     mutated_sequences.append("".join(mutated_sequence))
 
