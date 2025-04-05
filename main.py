@@ -8,15 +8,28 @@ with open("P12956.fasta", "r") as f:
     o_sequence = list("".join([l.strip() for l in lines[1:]]))
     f.close()
 
-with open("deep_mutational_scan.tsv", "r") as f:
+with open("tableau_suplementaire_2.csv", "r") as f:
     lines = f.readlines()
-    dms_labels = lines[0].strip().split("\t")
-    dms = [l.strip().split("\t") for l in lines[1:]]
+    # dms_labels = lines[0].strip().split("\t")
+    dms = [l.split(";") for l in lines[1:]]
     f.close()
 
-DEEPMUTDATALABELS = dms_labels
-DEEPMUTDATA = dms
-PROTEIN = o_sequence
+DEEPMUTDATALABELS = {
+    "W" : 0, "F" : 1, "Y" : 2, "P" : 3, "M" : 4,
+    "I" : 5, "L" : 6, "V" : 7, "A" : 8, "G" : 9,
+    "C" : 10,"S" : 11, "T" : 12, "Q" : 13, "N" : 14,
+    "D" : 15,"E" : 16, "H" : 17, "R" : 18, "K" : 19
+}
+
+# DEEPMUTDATALABELS = dms_labels
+PROTEIN = [DEEPMUTDATALABELS[aa] for aa in o_sequence[557:]]
+DEEPMUTDATA = [["NA"] * 20] * len(PROTEIN)
+
+
+for line in dms:
+    if line[4].isdigit() and line[5] in DEEPMUTDATALABELS.keys():
+        DEEPMUTDATA[int(line[4]) - 558][DEEPMUTDATALABELS[line[5]]] = line[14]
+
 N = 10**5
 
 def calc_identity(mutated_sequence):
@@ -48,7 +61,10 @@ for _ in range(500):
         while (s == "NA"):
             k = random.randint(0, 19)
             # Taking s from DEEPMUTDATA matrix instead of creating a vector for each amino acid of the protein
-            s = DEEPMUTDATA[ DEEPMUTDATALABELS.index(mutated_sequence[i]) ][k]
+            s = DEEPMUTDATA[i][k]
+
+            if s == "NA":
+                continue
 
         # 2. Calculate the probability of fixation
         s = float(s.replace(",", "."))
@@ -57,9 +73,9 @@ for _ in range(500):
         # 3. Determine if mutation is successful
         r = random.random()
         if r < pfix:
-            mutated_sequence[i] = DEEPMUTDATALABELS[k]
+            mutated_sequence[i] = k
 
-    mutated_sequences.append("".join(mutated_sequence))
+    mutated_sequences.append("".join([list(DEEPMUTDATALABELS.keys())[aa_index] for aa_index in mutated_sequence]))
 
 
 # output sequences
